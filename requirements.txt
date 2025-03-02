@@ -5,6 +5,7 @@ sqlalchemy
 passlib[bcrypt]
 cryptography
 PyJWT
+email-validator
 python-jose[cryptography]
 python-multipart
 jose
