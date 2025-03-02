@@ -153,3 +153,90 @@ def extract_keywords(sender: str, content: str):
     words = content.split()
     keywords = [word for word in words if len(word) > 5]
     return {"sender": sender, "keywords": keywords}
+@app.post("/api/messages/classify")
+def classify_message(sender, content):
+    if sender.startswith("+") and len(sender) > 10:
+        message_type = "whatsapp"
+    else:
+        message_type = "SMS"
+    
+    return {"sender": sender, "classification": message_type, "content": content}
+
+@app.get("/admin/users")
+def get_users(admin_key: str, db: Session = Depends(get_db)):
+    """
+    Obtiene la lista de usuarios registrados solo si la clave es correcta.
+    """
+    SECRET_ADMIN_KEY = "clave_super_secreta"
+
+    if admin_key != SECRET_ADMIN_KEY:
+        raise HTTPException(status_code=403, detail="Clave incorrecta, acceso denegado")
+
+    users = db.query(User).all()
+    return {"users": users}
+
+@app.post("/messages/block")
+def block_words(blocked_words: list[str], db: Session = Depends(get_db)):
+    """
+    Guarda una lista de palabras bloqueadas en la base de datos.
+    """
+    # Aquí podrías guardar las palabras bloqueadas en una tabla específica
+    return {"message": "Palabras bloqueadas actualizadas", "blocked_words": blocked_words}
+
+@app.get("/messages/filtered")
+def get_filtered_messages(db: Session = Depends(get_db)):
+    """
+    Obtiene los mensajes que contienen palabras bloqueadas y los marca como restringidos.
+    """
+    blocked_words = ["spam", "fraude", "bloqueado"]  # Esta lista debería venir de la BD
+    messages = db.query(Message).all()
+
+    filtered_messages = [
+        msg for msg in messages if any(word in msg.content.lower() for word in blocked_words)
+    ]
+
+    return {"filtered_messages": filtered_messages}
+
+@app.get("/api/messages/user/{user_id}")
+def get_user_messages(user_id: int, db: Session = Depends(get_db)):
+    """
+    Obtiene todos los mensajes de un usuario específico ordenados por fecha.
+    """
+    messages = db.query(Message).filter(Message.user_id == user_id).order_by(Message.created_at.desc()).all()
+    return {"user_id": user_id, "messages": messages}
+
+SPAM_KEYWORDS = ["oferta", "ganador", "descuento", "dinero", "gratis"]
+
+@app.post("/api/messages/spam-check")
+def check_spam_message(content: str):
+    """
+    Analiza si un mensaje contiene palabras clave de spam.
+    """
+    is_spam = any(word in content.lower() for word in SPAM_KEYWORDS)
+    return {"content": content, "is_spam": is_spam}
+
+@app.get("/api/messages/grouped")
+def get_grouped_messages(db: Session = Depends(get_db)):
+    """
+    Organiza los mensajes en categorías basadas en su contenido.
+    """
+    categories = {
+        "Trabajo": ["reunión", "proyecto", "deadline"],
+        "Personal": ["familia", "amigo", "cumpleaños"],
+        "Promociones": ["oferta", "descuento", "rebaja"]
+    }
+
+    grouped_messages = {"Trabajo": [], "Personal": [], "Promociones": [], "Otros": []}
+
+    messages = db.query(Message).all()
+    for msg in messages:
+        assigned = False
+        for category, keywords in categories.items():
+            if any(word in msg.content.lower() for word in keywords):
+                grouped_messages[category].append(msg)
+                assigned = True
+                break
+        if not assigned:
+            grouped_messages["Otros"].append(msg)
+
+    return grouped_messages
