@@ -9,6 +9,7 @@ import random
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
+from fastapi.middleware.cors import CORSMiddleware
 import os 
 
 # Crea las tablas en la base de datos (si no existen)
@@ -16,6 +17,14 @@ Base.metadata.create_all(bind=engine)
 
 # Instancia de la aplicación FastAPI
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Origen permitido (frontend)
+    allow_credentials=True,
+    allow_methods=["*"],  # Permitir todos los métodos (GET, POST, etc.)
+    allow_headers=["*"],  # Permitir todos los encabezados
+)
 
 # Configuración del contexto de cifrado para contraseñas
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
